@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Análise de Repetidas e Produção por Técnico</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 20px; }
+h1,h2 { color: #2c3e50; }
+input { margin-bottom: 20px; }
+.card { background: #fff; padding: 15px; margin-bottom: 20px; border-left: 5px solid #2c3e50; }
+table { width: 100%; border-collapse: collapse; background: #fff; margin-bottom: 40px; }
+th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
+th { background: #2c3e50; color: #fff; }
+.tr-tecnico { background: #ecf0f1; }
+.tr-tecnico td { font-size: 16px; font-weight: bold; padding: 12px; }
+.tr-cliente { background: #f8f9fa; }
+.tr-cliente td { font-size: 15px; font-weight: bold; }
+.tr-separador td { border: none; height: 15px; background: transparent; }
+.tr-ranking-ouro { background: #fff3cd; font-weight: bold; }
+.tr-ranking-prata { background: #e2e3e5; }
+.tr-ranking-bronze { background: #f8d7da; }
+.collapsible { background-color: #2c3e50; color: white; cursor: pointer; padding: 10px; width: 100%; border: none; text-align: left; outline: none; font-size: 15px; margin-bottom: 5px; }
+.active, .collapsible:hover { background-color: #34495e; }
+.content { padding: 0 18px; display: none; overflow: hidden; background-color: #f1f1f1; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<h1>📊 Análise de Repetidas e Produção</h1>
+<input type="file" id="fileInput" accept=".xls,.xlsx">
+<div class="card" id="resumo"></div>
+
+<button type="button" class="collapsible">🔁 Repetidas (Geral)</button>
+<div class="content"><table id="tabelaRepetidas"></table></div>
+
+<button type="button" class="collapsible">👨‍🔧 Produção por Técnico</button>
+<div class="content"><table id="tabelaTecnicos"></table></div>
+
+<button type="button" class="collapsible">📌 Repetidas por Técnico (Detalhado)</button>
+<div class="content"><table id="tabelaRepetidasPorTecnico"></table></div>
+
+<button type="button" class="collapsible">👤 Clientes com Repetidas e Motivos</button>
+<div class="content"><table id="tabelaClientesRepetidas"></table></div>
+
+<button type="button" class="collapsible">📊 Ranking Automático de Técnicos</button>
+<div class="content"><table id="tabelaRankingTecnicos"></table></div>
+
+<button type="button" class="collapsible">📊 Influência na Produção por Técnico</button>
+<div class="content"><table id="tabelaInfluenciaTecnicos"></table></div>
+
+<button type="button" class="collapsible">⭐ Pontuação de Ordens por Técnico</button>
+<div class="content"><table id="tabelaPontuacaoTecnicos"></table></div>
+
+<button type="button" class="collapsible">💰 Pontos Líquidos por Técnico</button>
+<div class="content"><table id="tabelaPontuacaoLiquidaTecnicos"></table></div>
+
+<script>
+const COLABORADORES_IGNORADOS = [
+    "JOEL FARIAS DA SILVA","SHAYRA BARBOZA MATOS DE SOUZA","RENATO CARVALHO LACERDA SANTOS",
+    "CRISTIANE ALMEIDA","MAYARA SABIO DA CRUZ","WILLIAM TOZETTO","STHEFANY JASTRSEMBSKIS",
+    "ANA JULIA DE SOUZA SILVA","KAUE GUILHERME GOMES DE SÁ","RAFAEL DA SILVA BARBARA",
+    "YNGRID VITORIA DO NASCIMENTO","ANDRE DE OLIVEIRA","KEIZY REGINA ALMEIDA PAVRET",
+    "PEDRO HENRIQUE DA SILVA RAMOS","THIAGO VITURINO DA SILVA"
+];
+
+const PONTUACAO_ASSUNTOS = {
+    "INSTALAÇÃO DE INTERNET": 3,
+    "INSTALAÇÃO": 3,
+    "REATIVAÇÃO DOS SERVIÇOS": 3,
+    "MUDANÇA DE ENDEREÇO": 3,
+    "RETIRADA": 0.5,
+    "SEM CONEXÃO": 2,
+    "OSCILAÇÃO": 1,
+    "REPARO DE OSCILAÇÃO": 1,
+    "REPARO CRITICO": 1,
+    "SUPORTE DE APP REMOTO": 0.5,
+    "ATIVAÇÃO DE APPS": 0.5,
+    "CABO DE REDE": 1,
+    "CLIENTE ATENUADO": 1,
+    "CONFIGURAÇÃO VOIP": 0.5,
+    "CONTRATAÇÃO VOIP": 0.5,
+    "EXPEDIÇÃO DE CARNÊ": 0.5,
+    "VISITA DA SUPERVISÃO": 1
+};
+
+function colaboradorIgnorado(nome){
+    if(!nome) return true;
+    return COLABORADORES_IGNORADOS.includes(nome.trim().toUpperCase());
+}
+
+function formatarDataExcel(valor){
+    if(!valor) return "";
+    if(typeof valor==="number"){
+        const data = new Date(Math.round((valor-25569)*86400*1000));
+        return data.toLocaleString("pt-BR");
+    }
+    return valor;
+}
+
+document.getElementById("fileInput").addEventListener("change", lerArquivo);
+
+function lerArquivo(e){
+    const reader = new FileReader();
+    reader.onload = function(evt){
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data,{type:"array"});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const dados = XLSX.utils.sheet_to_json(sheet);
+        processarDados(dados);
+    };
+    reader.readAsArrayBuffer(e.target.files[0]);
+}
+
+function classificarProblema(l){
+    const t = `${l["Tipo"]} ${l["Assunto"]} ${l["Diagnóstico"]}`.toUpperCase();
+    if(t.includes("SEM CONEX")) return "SEM CONEXÃO";
+    if(t.includes("OSCILA")) return "OSCILAÇÃO";
+    if(t.includes("INSTALAÇÃO DE INTERNET")) return "INSTALAÇÃO DE INTERNET";
+    if(t.includes("INSTALA")) return "INSTALAÇÃO";
+    if(t.includes("REATIVA")) return "REATIVAÇÃO DOS SERVIÇOS";
+    if(t.includes("MUDAN")) return "MUDANÇA DE ENDEREÇO";
+    if(t.includes("RETIR")) return "RETIRADA";
+    return l["Assunto"] || "NÃO INFORMADO";
+}
+
+function pontuar(problema){
+    problema = problema.toUpperCase().trim();
+    const assuntosOrdenados = Object.keys(PONTUACAO_ASSUNTOS)
+        .sort((a,b)=>{
+            if(a==="SEM CONEXÃO") return -1;
+            if(b==="SEM CONEXÃO") return 1;
+            return b.length - a.length;
+        });
+
+    for(const assunto of assuntosOrdenados){
+        if(problema.includes(assunto)) return PONTUACAO_ASSUNTOS[assunto];
+    }
+    return 0;
+}
+
+function processarDados(dados){
+    const clientes={}, tecnicos={}, repetidas=[], contagemAssuntos={}, pontosTecnico={};
+
+    dados.forEach(l=>{
+        const tecnico = l["Colaborador"];
+        if(colaboradorIgnorado(tecnico)) return;
+
+        const cliente = l["Cliente"];
+        const problema = classificarProblema(l);
+        const data = new Date(formatarDataExcel(l["Abertura"]));
+
+        contagemAssuntos[problema]=(contagemAssuntos[problema]||0)+1;
+
+        if(!clientes[cliente]) clientes[cliente]=[];
+        clientes[cliente].push({cliente, tecnico, data, problema, abertura:l["Abertura"]});
+
+        if(!tecnicos[tecnico]) tecnicos[tecnico]={total:0,repetidas:0,clientes:new Set()};
+        tecnicos[tecnico].total++;
+        tecnicos[tecnico].clientes.add(cliente);
+
+        if(!pontosTecnico[tecnico]) pontosTecnico[tecnico]={ordens:[], total:0};
+        const pontos = pontuar(problema);
+        pontosTecnico[tecnico].ordens.push({cliente, problema, pontos});
+        pontosTecnico[tecnico].total+=pontos;
+    });
+
+    Object.keys(clientes).forEach(c=>{
+        const a=clientes[c].sort((x,y)=>x.data-y.data);
+        for(let i=1;i<a.length;i++){
+            const ant=a[i-1], atu=a[i];
+            const ehRepetida=(ant.problema===atu.problema)||(ant.problema==="INSTALAÇÃO" && atu.problema==="SEM CONEXÃO");
+            if(ehRepetida){
+                tecnicos[ant.tecnico].repetidas++;
+                repetidas.push({
+                    cliente:c, tecnico:ant.tecnico, problema:ant.problema,
+                    primeiraVisita:formatarDataExcel(ant.abertura),
+                    segundaVisita:formatarDataExcel(atu.abertura)
+                });
+            }
+        }
+    });
+
+    const totalAtendimentos = dados.length;
+    const totalRepetidas = repetidas.length;
+
+    let listaAssuntosHtml="";
+    Object.keys(contagemAssuntos).sort().forEach(a=>{
+        listaAssuntosHtml+=`- ${a}: ${contagemAssuntos[a]}<br>`;
+    });
+
+    document.getElementById("resumo").innerHTML=`
+        <b>Total de atendimentos analisados:</b> ${totalAtendimentos}<br>
+        <b>Total de repetidas:</b> ${totalRepetidas}<br>
+        <b>Detalhamento por tipo de atendimento:</b><br>${listaAssuntosHtml}
+    `;
+
+    // Gera todas as tabelas
+    gerarTabelaRepetidas(repetidas);
+    gerarTabelaTecnicos(tecnicos);
+    gerarTabelaRepetidasPorTecnico(repetidas);
+    gerarTabelaClientesRepetidas(repetidas);
+    gerarRankingTecnicos(tecnicos);
+    gerarInfluenciaTecnicos(tecnicos,totalAtendimentos,totalRepetidas);
+    gerarTabelaPontuacaoTecnicos(pontosTecnico);
+    gerarTabelaPontuacaoLiquida(tecnicos,pontosTecnico,repetidas);
+}
+
+// --- Funções de geração de tabelas (mantidas) ---
+function gerarTabelaRepetidas(lista){
+    let h=`<tr><th>Cliente</th><th>Técnico</th><th>Problema</th><th>1ª Visita</th><th>2ª Visita</th></tr>`;
+    lista.forEach(r=>{h+=`<tr><td>${r.cliente}</td><td>${r.tecnico}</td><td>${r.problema}</td><td>${r.primeiraVisita}</td><td>${r.segundaVisita}</td></tr>`});
+    document.getElementById("tabelaRepetidas").innerHTML=h;
+}
+function gerarTabelaTecnicos(t){ let h=`<tr><th>Técnico</th><th>Total</th><th>Clientes</th><th>Repetidas</th></tr>`; Object.keys(t).forEach(k=>{h+=`<tr><td>${k}</td><td>${t[k].total}</td><td>${t[k].clientes.size}</td><td>${t[k].repetidas}</td></tr>`}); document.getElementById("tabelaTecnicos").innerHTML=h; }
+function gerarTabelaRepetidasPorTecnico(lista){ const g={}; lista.forEach(r=>{if(!g[r.tecnico]) g[r.tecnico]=[]; g[r.tecnico].push(r);}); let h=`<tr><th>Cliente</th><th>Problema</th><th>1ª Visita</th><th>2ª Visita</th></tr>`; Object.keys(g).forEach(t=>{ h+=`<tr class="tr-tecnico"><td colspan="4">👨‍🔧 Técnico: ${t}</td></tr>`; g[t].forEach(r=>{h+=`<tr><td>${r.cliente}</td><td>${r.problema}</td><td>${r.primeiraVisita}</td><td>${r.segundaVisita}</td></tr>`}); h+=`<tr class="tr-separador"><td colspan="4"></td></tr>`}); document.getElementById("tabelaRepetidasPorTecnico").innerHTML=h; }
+function gerarTabelaClientesRepetidas(lista){ const c={}; lista.forEach(r=>{ if(!c[r.cliente]) c[r.cliente]={total:0,motivos:new Set(),eventos:[]}; c[r.cliente].total++; c[r.cliente].motivos.add(r.problema); c[r.cliente].eventos.push(r);}); let h=`<tr><th>Cliente</th><th>Total</th><th>Motivos</th><th>Detalhes</th></tr>`; Object.keys(c).forEach(cli=>{ const x=c[cli]; h+=`<tr class="tr-cliente"><td>${cli}</td><td>${x.total}</td><td>${[...x.motivos].join(", ")}</td><td></td></tr>`; x.eventos.forEach(e=>{h+=`<tr><td colspan="2"></td><td>${e.problema}</td><td>Técnico: <b>${e.tecnico}</b><br>1ª: ${e.primeiraVisita}<br>2ª: ${e.segundaVisita}</td></tr>`}); h+=`<tr class="tr-separador"><td colspan="4"></td></tr>`}); document.getElementById("tabelaClientesRepetidas").innerHTML=h; }
+function gerarRankingTecnicos(tecnicos){ const lista = Object.keys(tecnicos).map(nome=>({ tecnico:nome, total:tecnicos[nome].total, repetidas:tecnicos[nome].repetidas, clientes:tecnicos[nome].clientes.size })); lista.sort((a,b)=>{ if(a.repetidas!==b.repetidas) return a.repetidas-b.repetidas; return b.total-a.total;}); let html=`<tr><th>Posição</th><th>Técnico</th><th>Total Ordens</th><th>Clientes</th><th>Repetidas</th><th>% Repetidas / Total</th></tr>`; lista.forEach((t,index)=>{ const percentual=t.total>0?((t.repetidas/t.total)*100).toFixed(1)+"%":"0%"; let classe=""; if(index===0) classe="tr-ranking-ouro"; if(index===1) classe="tr-ranking-prata"; if(index===2) classe="tr-ranking-bronze"; html+=`<tr class="${classe}"><td>${index+1}º</td><td>${t.tecnico}</td><td>${t.total}</td><td>${t.clientes}</td><td>${t.repetidas}</td><td>${percentual}</td></tr>`}); document.getElementById("tabelaRankingTecnicos").innerHTML=html; }
+function gerarInfluenciaTecnicos(tecnicos,totalGeral,totalRepetidas){ let html=`<tr><th>Técnico</th><th>Total Ordens</th><th>Total Repetidas</th><th>% de Influência na Produção</th><th>% de Repetidas no Total</th></tr>`; Object.keys(tecnicos).forEach(t=>{ const totalTec=tecnicos[t].total, repTec=tecnicos[t].repetidas; const percInfluencia=((totalTec/totalGeral)*100).toFixed(1)+"%"; const percRepetidas=totalRepetidas>0?((repTec/totalRepetidas)*100).toFixed(1)+"%":"0%"; html+=`<tr><td>${t}</td><td>${totalTec}</td><td>${repTec}</td><td>${percInfluencia}</td><td>${percRepetidas}</td></tr>`}); html+=`<tr style="font-weight:bold;background:#d1ecf1;"><td>Total Geral</td><td>${totalGeral}</td><td>${totalRepetidas}</td><td>100%</td><td>100%</td></tr>`; document.getElementById("tabelaInfluenciaTecnicos").innerHTML=html; }
+function gerarTabelaPontuacaoTecnicos(pontosTecnico){ let html=`<tr><th>Técnico</th><th>Detalhamento</th><th>Total de Pontos</th></tr>`; Object.keys(pontosTecnico).forEach(t=>{ html+=`<tr class="tr-tecnico"><td colspan="3">⭐ Técnico: ${t}</td></tr>`; pontosTecnico[t].ordens.forEach(o=>{ html+=`<tr><td></td><td>${o.cliente} – ${o.problema}</td><td>${o.pontos}</td></tr>`}); html+=`<tr style="font-weight:bold;background:#e8f5e9;"><td colspan="2">TOTAL FINAL</td><td>${pontosTecnico[t].total}</td></tr>`; html+=`<tr class="tr-separador"><td colspan="3"></td></tr>`}); document.getElementById("tabelaPontuacaoTecnicos").innerHTML=html; }
+
+// --- Nova tabela 8: Pontos Líquidos ---
+function gerarTabelaPontuacaoLiquida(tecnicos,pontosTecnico,repetidas){
+    let html=`<tr><th>Técnico</th><th>Total Pontos</th><th>Repetidas</th><th>Desconto (Repetidas)</th><th>Pontos Líquidos</th></tr>`;
+
+    const repetidasMap = {};
+    repetidas.forEach(r=>{
+        const key = `${r.tecnico}||${r.cliente}||${r.problema}`;
+        if(!repetidasMap[key]) repetidasMap[key] = 0;
+        repetidasMap[key]++;
+    });
+
+    Object.keys(tecnicos).forEach(t=>{
+        const ordens = pontosTecnico[t]?.ordens || [];
+        let total = 0;
+        let desconto = 0;
+
+        ordens.forEach(o=>{
+            total += o.pontos;
+            const key = `${t}||${o.cliente}||${o.problema}`;
+            if(repetidasMap[key] && repetidasMap[key] > 0){
+                desconto += o.pontos;
+                repetidasMap[key]--;
+            }
+        });
+
+        const liquido = total - desconto;
+        const totalRepetidas = tecnicos[t].repetidas || 0;
+
+        html+=`<tr><td>${t}</td><td>${total}</td><td>${totalRepetidas}</td><td>${desconto}</td><td>${liquido}</td></tr>`;
+    });
+
+    document.getElementById("tabelaPontuacaoLiquidaTecnicos").innerHTML=html;
+}
+
+// --- Script para colapsar todas as tabelas (fechadas por padrão) ---
+const coll = document.getElementsByClassName("collapsible");
+for(let i=0;i<coll.length;i++){
+    coll[i].addEventListener("click", function(){
+        this.classList.toggle("active");
+        const content = this.nextElementSibling;
+        if(content.style.display === "block"){ content.style.display = "none"; }
+        else{ content.style.display = "block"; }
+    });
+}
+</script>
+
+</body>
+</html>
