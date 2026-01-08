@@ -5,24 +5,24 @@
 <title>Análise de Repetidas e Produção por Técnico</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 20px; }
-h1,h2 { color: #2c3e50; }
+body { font-family: Arial, Roboto; background: 	#6A5ACD; margin: 15px; }
+h1,h2 { color: #483D8B; }
 input { margin-bottom: 20px; }
-.card { background: #fff; padding: 15px; margin-bottom: 20px; border-left: 5px solid #2c3e50; }
-table { width: 100%; border-collapse: collapse; background: #fff; margin-bottom: 40px; }
-th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
-th { background: #2c3e50; color: #fff; }
-.tr-tecnico { background: #ecf0f1; }
-.tr-tecnico td { font-size: 16px; font-weight: bold; padding: 12px; }
-.tr-cliente { background: #f8f9fa; }
-.tr-cliente td { font-size: 15px; font-weight: bold; }
-.tr-separador td { border: none; height: 15px; background: transparent; }
-.tr-ranking-ouro { background: #fff3cd; font-weight: bold; }
-.tr-ranking-prata { background: #e2e3e5; }
-.tr-ranking-bronze { background: #f8d7da; }
-.collapsible { background-color: #2c3e50; color: white; cursor: pointer; padding: 10px; width: 100%; border: none; text-align: left; outline: none; font-size: 15px; margin-bottom: 5px; }
-.active, .collapsible:hover { background-color: #34495e; }
-.content { padding: 0 18px; display: none; overflow: hidden; background-color: #f1f1f1; margin-bottom: 20px; }
+.card { background: #836FFF; padding: 5px; margin-bottom: 10px; border-left: 5px solid 	#7B68EE; }
+table { width: 100%; border-collapse: collapse; background: 				#FFFFE0; margin-bottom: 10px; }
+th, td { border: 5px solid #ddd; padding: 2px; font-size: 15px; }
+th { background: #836FFF; color: 	#4B0082; }
+.tr-tecnico { background: 	#7B68EE; }
+.tr-tecnico td { font-size: 10px; font-weight: bold; padding: 10px; }
+.tr-cliente { background: 		#7B68EE; }
+.tr-cliente td { font-size: 12px; font-weight: bold; }
+.tr-separador td { border: none; height: 10px; background: transparent; }
+.tr-ranking-ouro { background: 	#ADFF2F; font-weight: bold; }
+.tr-ranking-prata { background: 	#6B8E23; }
+.tr-ranking-bronze { background: #808000; }
+.collapsible { background-color: #483D8B; color: white; cursor: pointer; padding: 20px; width: 100%; border: none; text-align: left; outline: none; font-size: 22px; margin-bottom: 5px; }
+.active, .collapsible:hover { background-color: 			#836FFF; }
+.content { padding: 0 10px; display: none; overflow: hidden; background-color: #4B0082; margin-bottom: 20px; }
 </style>
 </head>
 <body>
@@ -41,7 +41,7 @@ th { background: #2c3e50; color: #fff; }
 <div class="content"><table id="tabelaRepetidasPorTecnico"></table></div>
 
 <button type="button" class="collapsible">👤 Clientes com Repetidas e Motivos</button>
-<div class="content"><table id="tabelaClientesRepetidas"></table></div>
+<div class="content"><table id="tabelaClientesRepetidas"></table></div><div>
 
 <button type="button" class="collapsible">📊 Ranking Automático de Técnicos</button>
 <div class="content"><table id="tabelaRankingTecnicos"></table></div>
